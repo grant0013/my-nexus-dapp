@@ -107,32 +107,21 @@
                         
                         // Check if the current network is the Nexus Testnet
                         if (network.chainId !== parseInt(nexusTestnetChainId, 16)) {
-                            statusMessage.textContent = "Switching to Nexus Testnet...";
+                            statusMessage.textContent = "Please switch to Nexus Testnet in your wallet.";
                             try {
                                 // Request to switch to the Nexus Testnet
                                 await window.ethereum.request({
                                     method: 'wallet_switchEthereumChain',
                                     params: [{ chainId: nexusTestnetChainId }],
                                 });
+                                // If switch is successful, reload the page to reconnect
+                                window.location.reload();
                             } catch (switchError) {
-                                // This error code indicates that the chain has not been added to MetaMask
-                                if (switchError.code === 4902) {
-                                    try {
-                                        // Request to add the Nexus Testnet
-                                        await window.ethereum.request({
-                                            method: 'wallet_addEthereumChain',
-                                            params: [nexusTestnetConfig],
-                                        });
-                                    } catch (addError) {
-                                        statusMessage.textContent = "Failed to add Nexus Testnet. Please add it manually to your wallet.";
-                                        console.error("Failed to add network:", addError);
-                                        return;
-                                    }
-                                }
+                                statusMessage.textContent = `Please switch to the Nexus Testnet.
+                                Error: ${switchError.message}`;
+                                console.error("Error switching network:", switchError);
+                                return;
                             }
-                            // Reconnect after switching
-                            provider = new ethers.providers.Web3Provider(window.ethereum);
-                            signer = provider.getSigner();
                         }
 
                         contract = new ethers.Contract(contractAddress, contractABI, signer);
