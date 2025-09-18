@@ -3,175 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Counter DApp Demo</title>
+    <title>Funded Counter DApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
         }
-        .card {
-            background-color: #1e1e1e;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .btn {
-            transition: all 0.2s;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        .gradient-bg {
+            background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-6">
-
-    <div class="card p-8 rounded-xl max-w-lg w-full text-center">
-        <h1 class="text-3xl font-bold mb-4 text-white">Counter DApp on Nexus</h1>
-        <p class="text-lg mb-6 text-gray-400">
-            This is a conceptual demo showing how a simple Solidity smart contract could be deployed and
-            interacted with on the Nexus Layer 1 blockchain, using standard Ethereum tools.
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="gradient-bg text-white rounded-2xl shadow-2xl p-8 max-w-lg w-full flex flex-col items-center space-y-6">
+        <h1 class="text-3xl font-bold">Funded Counter DApp</h1>
+        <p class="text-center text-gray-200">
+            Welcome to the Nexus Testnet! This dApp lets you earn rewards and compete on a leaderboard.
         </p>
-
-        <div class="space-y-4">
-            <div class="bg-gray-800 p-4 rounded-xl">
-                <p class="text-gray-300 text-sm">Current Counter Value</p>
-                <div id="counter-display" class="text-6xl font-extrabold text-blue-400 my-4">...</div>
-            </div>
-
-            <button id="increment-btn" class="btn w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-                Increment Counter
+        <div class="w-full text-center">
+            <p class="text-6xl font-extrabold" id="counter-display">0</p>
+            <p class="mt-2 text-gray-300">Current Counter Value</p>
+        </div>
+        <div id="status-message" class="bg-blue-600 text-white p-3 rounded-lg w-full text-center hidden"></div>
+        <div id="connect-container" class="w-full space-y-4">
+            <button id="connect-button" class="bg-white text-blue-600 w-full font-bold py-3 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                Connect Wallet
             </button>
-            <div id="status-message" class="text-gray-400 mt-4 text-sm"></div>
         </div>
 
-        <div class="mt-8 text-left border border-gray-700 p-4 rounded-xl">
-            <h3 class="text-lg font-bold mb-2 text-white">Smart Contract Code</h3>
-            <pre class="bg-gray-800 p-4 rounded-lg text-gray-300 text-sm overflow-auto">
-                // SPDX-License-Identifier: MIT
-                pragma solidity ^0.8.0;
-
-                contract Counter {
-                    uint public count;
-
-                    function increment() public {
-                        count += 1;
-                    }
-                }
-            </pre>
-            <p class="text-sm text-gray-500 mt-2">
-                This is a simple, non-audited contract for demonstration purposes.
-            </p>
+        <div id="dapp-container" class="w-full space-y-4 hidden">
+            <div class="bg-white bg-opacity-10 rounded-xl p-4 flex flex-col items-center space-y-3">
+                <p class="text-lg font-semibold">Account: <span id="account-address" class="font-normal text-sm break-all"></span></p>
+                <p class="text-lg font-semibold">Your Contributions: <span id="user-contributions" class="font-normal">0 NEX</span></p>
+                <p class="text-lg font-semibold">Claimable Rewards: <span id="claimable-rewards" class="font-normal">0 NEX</span></p>
+                <p id="lock-status" class="text-sm text-yellow-300"></p>
+                <p id="claim-status" class="text-sm text-yellow-300"></p>
+            </div>
+            
+            <p class="text-center text-gray-300">Fee to increment: 0.001 NEX</p>
+            <button id="increment-button" class="bg-white text-blue-600 w-full font-bold py-3 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                Increment Counter
+            </button>
+            <div class="flex space-x-4">
+                <button id="claim-rewards-button" class="bg-green-500 text-white w-full font-bold py-3 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    Claim Rewards
+                </button>
+                <button id="user-withdraw-button" class="bg-yellow-500 text-white w-full font-bold py-3 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    Withdraw Contributions
+                </button>
+            </div>
+            
+            <div class="w-full">
+                <h2 class="text-2xl font-bold mt-6 mb-4 text-center">Leaderboard</h2>
+                <div id="leaderboard-container" class="bg-white bg-opacity-10 rounded-xl p-4">
+                    <ul id="leaderboard-list" class="space-y-2">
+                        <!-- Leaderboard items will be injected here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Using a custom message box instead of alert() -->
+    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full">
+            <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
+            <p id="modal-message" class="text-gray-700 mb-4"></p>
+            <div class="flex justify-end">
+                <button id="modal-close" class="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600">Close</button>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.ethers.io/5.7/ethers.umd.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const counterDisplay = document.getElementById('counter-display');
-            const incrementBtn = document.getElementById('increment-btn');
-            const statusMessage = document.getElementById('status-message');
+        // Check for ethereum object and display a message if not found
+        if (typeof window.ethereum === 'undefined') {
+            document.getElementById('connect-button').disabled = true;
+            document.getElementById('connect-button').textContent = 'Please install MetaMask';
+        }
 
-            const contractAddress = "0x6c286cf47B9c2A165F0105b0127a8CA6d6dd6835";
+        const CONTRACT_ADDRESS = "0x7Ff175a22533F915152391694A1521a08C66f44C"; // Placeholder for the new contract address
+        const ABI = [
+            "function counter() view returns (uint)",
+            "function incrementAndPay() payable",
+            "function owner() view returns (address)",
+            "function userWithdraw()",
+            "function claimRewards()",
+            "function userContributions(address) view returns (uint)",
+            "function rewardPerShare() view returns (uint)",
+            "function totalContributions() view returns (uint)",
+            "function incrementFee() view returns (uint)",
+            "function userWithdrawalFee() view returns (uint)",
+            "function getLeaderboard() view returns (address[] memory)",
+            "function lockTime(address) view returns (uint)",
+            "function MIN_LOCK_PERIOD() view returns (uint)",
+            "function MIN_CLAIM_PERIOD() view returns (uint)",
+            "function lastClaimTime(address) view returns (uint)",
+            "function lastRewardPerShare(address) view returns (uint)"
+        ];
+
+        let provider;
+        let signer;
+        let contract;
+        let account;
+        let lockTimerInterval;
+        let claimTimerInterval;
+
+        const connectButton = document.getElementById('connect-button');
+        const dappContainer = document.getElementById('dapp-container');
+        const connectContainer = document.getElementById('connect-container');
+        const counterDisplay = document.getElementById('counter-display');
+        const incrementButton = document.getElementById('increment-button');
+        const accountAddress = document.getElementById('account-address');
+        const userContributionsDisplay = document.getElementById('user-contributions');
+        const claimableRewardsDisplay = document.getElementById('claimable-rewards');
+        const userWithdrawButton = document.getElementById('user-withdraw-button');
+        const claimRewardsButton = document.getElementById('claim-rewards-button');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const lockStatusDisplay = document.getElementById('lock-status');
+        const claimStatusDisplay = document.getElementById('claim-status');
+        const modalContainer = document.getElementById('modal-container');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseButton = document.getElementById('modal-close');
+
+        // Function to show a custom modal message instead of alert()
+        function showMessage(message, title = 'Info') {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalContainer.classList.remove('hidden');
+        }
+
+        modalCloseButton.onclick = () => {
+            modalContainer.classList.add('hidden');
+        };
+
+        // Initialize Ethers and connect to MetaMask
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                showMessage("MetaMask is not installed. Please install it to use this dApp.", "Wallet Error");
+                return;
+            }
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                account = accounts[0];
+                accountAddress.textContent = account;
+
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+                connectContainer.classList.add('hidden');
+                dappContainer.classList.remove('hidden');
+
+                fetchData();
+
+                window.ethereum.on('accountsChanged', (newAccounts) => {
+                    account = newAccounts[0];
+                    accountAddress.textContent = account;
+                    if (account) {
+                        fetchData();
+                    } else {
+                        window.location.reload();
+                    }
+                });
+
+                window.ethereum.on('chainChanged', () => {
+                    window.location.reload();
+                });
+
+            } catch (error) {
+                console.error("User rejected wallet connection or an error occurred:", error);
+                showMessage("Failed to connect wallet. Please try again.", "Connection Error");
+            }
+        }
+
+        // Fetch contract data
+        async function fetchData() {
+            if (!contract) return;
+            try {
+                const currentCounter = await contract.counter();
+                counterDisplay.textContent = currentCounter.toString();
+                
+                const userContributed = await contract.userContributions(account);
+                userContributionsDisplay.textContent = `${ethers.utils.formatEther(userContributed)} NEX`;
+
+                const rewardPerShare = await contract.rewardPerShare();
+                const lastRewardPerShare = await contract.lastRewardPerShare(account);
+                const claimableAmount = ((rewardPerShare.sub(lastRewardPerShare)).mul(userContributed)).div(ethers.BigNumber.from(10).pow(18));
+                claimableRewardsDisplay.textContent = `${ethers.utils.formatEther(claimableAmount)} NEX`;
+
+                await renderLeaderboard();
+                handleTimeLocks();
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                showMessage("Could not fetch contract data. Make sure you are on the correct network.", "Data Fetch Error");
+            }
+        }
+        
+        async function handleTimeLocks() {
+            const userLockTime = await contract.lockTime(account);
+            const minLockPeriod = await contract.MIN_LOCK_PERIOD();
+            const unlockTime = userLockTime.add(minLockPeriod);
+            const currentTime = Math.floor(Date.now() / 1000);
+
+            if (currentTime < unlockTime.toNumber()) {
+                userWithdrawButton.disabled = true;
+                lockStatusDisplay.classList.remove('hidden');
+                if (lockTimerInterval) clearInterval(lockTimerInterval);
+                lockTimerInterval = setInterval(() => {
+                    const timeRemaining = unlockTime.toNumber() - Math.floor(Date.now() / 1000);
+                    if (timeRemaining <= 0) {
+                        clearInterval(lockTimerInterval);
+                        userWithdrawButton.disabled = false;
+                        lockStatusDisplay.textContent = "Your funds are now unlocked!";
+                    } else {
+                        const hours = Math.floor(timeRemaining / 3600);
+                        const minutes = Math.floor((timeRemaining % 3600) / 60);
+                        const seconds = timeRemaining % 60;
+                        lockStatusDisplay.textContent = `Funds are locked. Unlocks in ${hours}h ${minutes}m ${seconds}s`;
+                    }
+                }, 1000);
+            } else {
+                userWithdrawButton.disabled = false;
+                lockStatusDisplay.classList.add('hidden');
+                if (lockTimerInterval) clearInterval(lockTimerInterval);
+            }
+
+            const userLastClaimTime = await contract.lastClaimTime(account);
+            const minClaimPeriod = await contract.MIN_CLAIM_PERIOD();
+            const nextClaimTime = userLastClaimTime.add(minClaimPeriod);
+
+            if (currentTime < nextClaimTime.toNumber()) {
+                claimRewardsButton.disabled = true;
+                claimStatusDisplay.classList.remove('hidden');
+                if (claimTimerInterval) clearInterval(claimTimerInterval);
+                claimTimerInterval = setInterval(() => {
+                    const timeRemaining = nextClaimTime.toNumber() - Math.floor(Date.now() / 1000);
+                    if (timeRemaining <= 0) {
+                        clearInterval(claimTimerInterval);
+                        claimRewardsButton.disabled = false;
+                        claimStatusDisplay.textContent = "You can claim rewards now!";
+                    } else {
+                        const hours = Math.floor(timeRemaining / 3600);
+                        const minutes = Math.floor((timeRemaining % 3600) / 60);
+                        const seconds = timeRemaining % 60;
+                        claimStatusDisplay.textContent = `Claiming locked. Unlocks in ${hours}h ${minutes}m ${seconds}s`;
+                    }
+                }, 1000);
+            } else {
+                claimRewardsButton.disabled = false;
+                claimStatusDisplay.classList.add('hidden');
+                if (claimTimerInterval) clearInterval(claimTimerInterval);
+            }
+        }
+        
+        async function renderLeaderboard() {
+            leaderboardList.innerHTML = '';
+            try {
+                const leaderboard = await contract.getLeaderboard();
+                if (leaderboard.length === 0) {
+                    leaderboardList.innerHTML = '<li class="text-center text-gray-300">No contributors yet! Be the first!</li>';
+                    return;
+                }
+                for (let i = 0; i < leaderboard.length; i++) {
+                    const address = leaderboard[i];
+                    const contributions = await contract.userContributions(address);
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('flex', 'justify-between', 'items-center', 'p-2', 'rounded', 'bg-white', 'bg-opacity-5', 'text-sm');
+                    listItem.innerHTML = `
+                        <span class="font-semibold">${i + 1}.</span>
+                        <span class="flex-1 ml-4">${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+                        <span class="font-bold">${parseFloat(ethers.utils.formatEther(contributions)).toFixed(4)} NEX</span>
+                    `;
+                    leaderboardList.appendChild(listItem);
+                }
+            } catch (error) {
+                console.error("Error fetching leaderboard:", error);
+                leaderboardList.innerHTML = '<li class="text-center text-red-300">Failed to load leaderboard.</li>';
+            }
+        }
+
+        async function handleIncrement() {
+            if (!contract) {
+                showMessage("Wallet not connected. Please connect your wallet first.", "Action Required");
+                return;
+            }
             
-            const contractABI = [
-                "function increment() public",
-                "function count() public view returns (uint)"
-            ];
+            try {
+                const incrementFee = await contract.incrementFee();
+                const tx = await contract.incrementAndPay({ value: incrementFee });
+                showMessage("Transaction sent. Waiting for confirmation...", "Transaction in Progress");
+                await tx.wait();
+                showMessage("Counter incremented successfully!", "Success");
+                fetchData();
 
-            const nexusTestnetChainId = '0xf64'; // Chain ID 3940
-            const nexusTestnetConfig = {
-                chainId: nexusTestnetChainId,
-                chainName: 'Nexus Testnet',
-                rpcUrls: ['https://rpc.nexus.testnet.apexfusion.org/'],
-                nativeCurrency: {
-                    name: 'NEX',
-                    symbol: 'NEX',
-                    decimals: 18
-                },
-                blockExplorerUrls: ['https://testnet.nexus.io/']
-            };
-
-            let provider;
-            let signer;
-            let contract;
-
-            async function connectWallet() {
-                if (window.ethereum) {
-                    try {
-                        provider = new ethers.providers.Web3Provider(window.ethereum);
-                        await provider.send("eth_requestAccounts", []);
-                        signer = provider.getSigner();
-                        
-                        const network = await provider.getNetwork();
-                        
-                        // Check if the current network is the Nexus Testnet
-                        if (network.chainId !== parseInt(nexusTestnetChainId, 16)) {
-                            statusMessage.textContent = "Please switch to Nexus Testnet in your wallet.";
-                            try {
-                                // Request to switch to the Nexus Testnet
-                                await window.ethereum.request({
-                                    method: 'wallet_switchEthereumChain',
-                                    params: [{ chainId: nexusTestnetChainId }],
-                                });
-                                // If switch is successful, reload the page to reconnect
-                                window.location.reload();
-                            } catch (switchError) {
-                                statusMessage.textContent = `Please switch to the Nexus Testnet.
-                                Error: ${switchError.message}`;
-                                console.error("Error switching network:", switchError);
-                                return;
-                            }
-                        }
-
-                        contract = new ethers.Contract(contractAddress, contractABI, signer);
-                        statusMessage.textContent = `Connected to Nexus Testnet. Account: ${await signer.getAddress()}`;
-                        getCounter();
-                        incrementBtn.disabled = false;
-
-                    } catch (error) {
-                        statusMessage.textContent = "Error connecting to wallet: " + error.message;
-                        console.error("Error connecting to wallet:", error);
-                    }
+            } catch (error) {
+                console.error("Transaction failed:", error);
+                if (error.code === 4001) {
+                    showMessage("You rejected the transaction.", "Transaction Rejected");
                 } else {
-                    statusMessage.textContent = "MetaMask or a similar wallet is not installed.";
-                    incrementBtn.disabled = true;
+                    showMessage("Transaction failed. Check the console for more details.", "Transaction Failed");
                 }
             }
-
-            async function getCounter() {
-                if (contract) {
-                    try {
-                        const currentCount = await contract.count();
-                        counterDisplay.textContent = currentCount.toString();
-                    } catch (error) {
-                        statusMessage.textContent = "Error reading contract data: " + error.message;
-                        console.error("Error reading contract:", error);
-                    }
-                }
+        }
+        
+        async function handleUserWithdraw() {
+            if (!contract) {
+                showMessage("Wallet not connected. Please connect your wallet first.", "Action Required");
+                return;
             }
-
-            async function incrementCounter() {
-                if (contract) {
-                    try {
-                        statusMessage.textContent = "Sending transaction...";
-                        const tx = await contract.increment();
-                        await tx.wait();
-                        statusMessage.textContent = "Transaction successful! Updating counter...";
-                        getCounter();
-                    } catch (error) {
-                        statusMessage.textContent = "Transaction failed: " + error.message;
-                        console.error("Transaction error:", error);
-                    }
+            try {
+                const tx = await contract.userWithdraw();
+                showMessage("Withdrawal transaction sent...", "Transaction in Progress");
+                await tx.wait();
+                showMessage("Funds withdrawn successfully!", "Success");
+                fetchData();
+            } catch (error) {
+                console.error("Withdrawal failed:", error);
+                if (error.code === 4001) {
+                    showMessage("You rejected the withdrawal transaction.", "Transaction Rejected");
                 } else {
-                    statusMessage.textContent = "Contract not initialized. Please connect your wallet first.";
+                    showMessage("Withdrawal failed. Check the console for more details.", "Transaction Failed");
                 }
             }
+        }
+        
+        async function handleClaimRewards() {
+            if (!contract) {
+                showMessage("Wallet not connected. Please connect your wallet first.", "Action Required");
+                return;
+            }
+            try {
+                const tx = await contract.claimRewards();
+                showMessage("Claim transaction sent...", "Transaction in Progress");
+                await tx.wait();
+                showMessage("Rewards claimed successfully!", "Success");
+                fetchData();
+            } catch (error) {
+                console.error("Claiming rewards failed:", error);
+                if (error.code === 4001) {
+                    showMessage("You rejected the claim transaction.", "Transaction Rejected");
+                } else {
+                    showMessage("Claiming rewards failed. Check the console for more details.", "Transaction Failed");
+                }
+            }
+        }
 
+        connectButton.addEventListener('click', connectWallet);
+        incrementButton.addEventListener('click', handleIncrement);
+        userWithdrawButton.addEventListener('click', handleUserWithdraw);
+        claimRewardsButton.addEventListener('click', handleClaimRewards);
+
+        if (typeof window.ethereum !== 'undefined' && window.ethereum.selectedAddress) {
             connectWallet();
-
-            incrementBtn.addEventListener('click', incrementCounter);
-        });
+        }
     </script>
 </body>
 </html>
