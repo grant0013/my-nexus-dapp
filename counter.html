@@ -74,12 +74,23 @@
 
             const contractAddress = "0x6c286cf47B9c2A165F0105b0127a8CA6d6dd6835";
             
-            // This is a placeholder for a real ABI and Bytecode from a compiled contract.
-            // In a real scenario, you would compile the Solidity code to get these values.
             const contractABI = [
                 "function increment() public",
                 "function count() public view returns (uint)"
             ];
+
+            const nexusTestnetChainId = '0x1634'; // Chain ID 5684
+            const nexusTestnetConfig = {
+                chainId: nexusTestnetChainId,
+                chainName: 'Nexus Testnet',
+                rpcUrls: ['https://testnet.nexus.io/rpc'],
+                nativeCurrency: {
+                    name: 'NEX',
+                    symbol: 'NEX',
+                    decimals: 18
+                },
+                blockExplorerUrls: ['https://testnet.nexus.io/']
+            };
 
             let provider;
             let signer;
@@ -93,18 +104,41 @@
                         signer = provider.getSigner();
                         
                         const network = await provider.getNetwork();
-                        statusMessage.textContent = `Connected to network: ${network.name} (Chain ID: ${network.chainId})`;
-
-                        // Note: In a real app, you would use a deployed contract address.
-                        // This is a placeholder for demonstration purposes.
-                        if (contractAddress !== "0x0000000000000000000000000000000000000000") {
-                             contract = new ethers.Contract(contractAddress, contractABI, signer);
-                             getCounter();
-                             incrementBtn.disabled = false;
-                        } else {
-                            statusMessage.textContent = "Please deploy the contract on a testnet and update the address.";
-                            incrementBtn.disabled = true;
+                        
+                        // Check if the current network is the Nexus Testnet
+                        if (network.chainId !== parseInt(nexusTestnetChainId, 16)) {
+                            statusMessage.textContent = "Switching to Nexus Testnet...";
+                            try {
+                                // Request to switch to the Nexus Testnet
+                                await window.ethereum.request({
+                                    method: 'wallet_switchEthereumChain',
+                                    params: [{ chainId: nexusTestnetChainId }],
+                                });
+                            } catch (switchError) {
+                                // This error code indicates that the chain has not been added to MetaMask
+                                if (switchError.code === 4902) {
+                                    try {
+                                        // Request to add the Nexus Testnet
+                                        await window.ethereum.request({
+                                            method: 'wallet_addEthereumChain',
+                                            params: [nexusTestnetConfig],
+                                        });
+                                    } catch (addError) {
+                                        statusMessage.textContent = "Failed to add Nexus Testnet. Please add it manually to your wallet.";
+                                        console.error("Failed to add network:", addError);
+                                        return;
+                                    }
+                                }
+                            }
+                            // Reconnect after switching
+                            provider = new ethers.providers.Web3Provider(window.ethereum);
+                            signer = provider.getSigner();
                         }
+
+                        contract = new ethers.Contract(contractAddress, contractABI, signer);
+                        statusMessage.textContent = `Connected to Nexus Testnet. Account: ${await signer.getAddress()}`;
+                        getCounter();
+                        incrementBtn.disabled = false;
 
                     } catch (error) {
                         statusMessage.textContent = "Error connecting to wallet: " + error.message;
@@ -152,3 +186,4 @@
     </script>
 </body>
 </html>
+
