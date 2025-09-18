@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Counter DApp Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        .card {
+            background-color: #1e1e1e;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn {
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6">
+
+    <div class="card p-8 rounded-xl max-w-lg w-full text-center">
+        <h1 class="text-3xl font-bold mb-4 text-white">Counter DApp on Nexus</h1>
+        <p class="text-lg mb-6 text-gray-400">
+            This is a conceptual demo showing how a simple Solidity smart contract could be deployed and
+            interacted with on the Nexus Layer 1 blockchain, using standard Ethereum tools.
+        </p>
+
+        <div class="space-y-4">
+            <div class="bg-gray-800 p-4 rounded-xl">
+                <p class="text-gray-300 text-sm">Current Counter Value</p>
+                <div id="counter-display" class="text-6xl font-extrabold text-blue-400 my-4">...</div>
+            </div>
+
+            <button id="increment-btn" class="btn w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                Increment Counter
+            </button>
+            <div id="status-message" class="text-gray-400 mt-4 text-sm"></div>
+        </div>
+
+        <div class="mt-8 text-left border border-gray-700 p-4 rounded-xl">
+            <h3 class="text-lg font-bold mb-2 text-white">Smart Contract Code</h3>
+            <pre class="bg-gray-800 p-4 rounded-lg text-gray-300 text-sm overflow-auto">
+                // SPDX-License-Identifier: MIT
+                pragma solidity ^0.8.0;
+
+                contract Counter {
+                    uint public count;
+
+                    function increment() public {
+                        count += 1;
+                    }
+                }
+            </pre>
+            <p class="text-sm text-gray-500 mt-2">
+                This is a simple, non-audited contract for demonstration purposes.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const counterDisplay = document.getElementById('counter-display');
+            const incrementBtn = document.getElementById('increment-btn');
+            const statusMessage = document.getElementById('status-message');
+
+            const contractAddress = "0x6c286cf47B9c2A165F0105b0127a8CA6d6dd6835";
+            
+            // This is a placeholder for a real ABI and Bytecode from a compiled contract.
+            // In a real scenario, you would compile the Solidity code to get these values.
+            const contractABI = [
+                "function increment() public",
+                "function count() public view returns (uint)"
+            ];
+
+            let provider;
+            let signer;
+            let contract;
+
+            async function connectWallet() {
+                if (window.ethereum) {
+                    try {
+                        provider = new ethers.providers.Web3Provider(window.ethereum);
+                        await provider.send("eth_requestAccounts", []);
+                        signer = provider.getSigner();
+                        
+                        const network = await provider.getNetwork();
+                        statusMessage.textContent = `Connected to network: ${network.name} (Chain ID: ${network.chainId})`;
+
+                        // Note: In a real app, you would use a deployed contract address.
+                        // This is a placeholder for demonstration purposes.
+                        if (contractAddress !== "0x0000000000000000000000000000000000000000") {
+                             contract = new ethers.Contract(contractAddress, contractABI, signer);
+                             getCounter();
+                             incrementBtn.disabled = false;
+                        } else {
+                            statusMessage.textContent = "Please deploy the contract on a testnet and update the address.";
+                            incrementBtn.disabled = true;
+                        }
+
+                    } catch (error) {
+                        statusMessage.textContent = "Error connecting to wallet: " + error.message;
+                        console.error("Error connecting to wallet:", error);
+                    }
+                } else {
+                    statusMessage.textContent = "MetaMask or a similar wallet is not installed.";
+                    incrementBtn.disabled = true;
+                }
+            }
+
+            async function getCounter() {
+                if (contract) {
+                    try {
+                        const currentCount = await contract.count();
+                        counterDisplay.textContent = currentCount.toString();
+                    } catch (error) {
+                        statusMessage.textContent = "Error reading contract data: " + error.message;
+                        console.error("Error reading contract:", error);
+                    }
+                }
+            }
+
+            async function incrementCounter() {
+                if (contract) {
+                    try {
+                        statusMessage.textContent = "Sending transaction...";
+                        const tx = await contract.increment();
+                        await tx.wait();
+                        statusMessage.textContent = "Transaction successful! Updating counter...";
+                        getCounter();
+                    } catch (error) {
+                        statusMessage.textContent = "Transaction failed: " + error.message;
+                        console.error("Transaction error:", error);
+                    }
+                } else {
+                    statusMessage.textContent = "Contract not initialized. Please connect your wallet first.";
+                }
+            }
+
+            connectWallet();
+
+            incrementBtn.addEventListener('click', incrementCounter);
+        });
+    </script>
+</body>
+</html>
