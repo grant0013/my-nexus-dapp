@@ -101,7 +101,8 @@
             "function MIN_LOCK_PERIOD() view returns (uint)",
             "function MIN_CLAIM_PERIOD() view returns (uint)",
             "function lastClaimTime(address) view returns (uint)",
-            "function lastRewardPerShare(address) view returns (uint)"
+            "function lastRewardPerShare(address) view returns (uint)",
+            "event FundsWithdrawn(address indexed owner, uint amount)"
         ];
 
         let provider;
